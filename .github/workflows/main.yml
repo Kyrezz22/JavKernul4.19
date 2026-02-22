@@ -14,25 +14,35 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git bc build-essential libncurses-dev libssl-dev flex bison rsync kmod cpio python3 device-tree-compiler zip
+          sudo apt-get install -y git bc build-essential libncurses-dev libssl-dev flex bison rsync kmod cpio python3 device-tree-compiler zip libelf-dev pahole
 
       - name: Download Proton Clang
         run: |
           git clone https://github.com/kdrag0n/proton-clang.git --depth=1 bin/clang
 
-      - name: Setup DTC Overlay
+      - name: Fix 4.19 Common Bug
         run: |
-          mkdir -p scripts/dtc
-          cp $(which dtc) scripts/dtc/dtc_overlay
-          chmod +x scripts/dtc/dtc_overlay
+          # Memperbaiki error yylloc yang sering muncul di kernel lama
+          sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/g' scripts/dtc/dtc-lexer.l || true
 
       - name: Build Kernel
         run: |
           export PATH=$(pwd)/bin/clang/bin:$PATH
+          
+          # Setup DTC Overlay (Trik temanmu)
+          mkdir -p scripts/dtc
+          cp $(which dtc) scripts/dtc/dtc_overlay
+          chmod +x scripts/dtc/dtc_overlay
+
+          # Konfigurasi
           make O=out ARCH=arm64 rosemary_defconfig
+
+          # Kompilasi
           make -j$(nproc --all) O=out \
             ARCH=arm64 \
             CC=clang \
+            HOSTCC=gcc \
+            HOSTCXX=g++ \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             AR=llvm-ar \
@@ -40,7 +50,6 @@ jobs:
             OBJCOPY=llvm-objcopy \
             OBJDUMP=llvm-objdump \
             STRIP=llvm-strip \
-            OBJSIZE=llvm-size \
             LD=ld.lld \
             KBUILD_BUILD_USER="@Java_nih_deks" \
             KBUILD_BUILD_HOST="XianTian-CI"
