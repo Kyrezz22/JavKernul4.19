@@ -3,14 +3,6 @@ name: Build JavKernul
 on:
   workflow_dispatch:
 
-env:
-  ARCH: arm64
-  CC: clang
-  CROSS_COMPILE: aarch64-linux-gnu-
-  CROSS_COMPILE_ARM32: arm-linux-gnueabi-
-  KBUILD_BUILD_USER: "@Java_nih_deks"
-  KBUILD_BUILD_HOST: "GitHub-Actions"
-
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
@@ -22,7 +14,11 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git clang llvm lld build-essential libncurses-dev libssl-dev bc flex bison rsync kmod cpio python3 gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi device-tree-compiler
+          sudo apt-get install -y git bc build-essential libncurses-dev libssl-dev flex bison rsync kmod cpio python3 device-tree-compiler zip
+
+      - name: Download Proton Clang
+        run: |
+          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 bin/clang
 
       - name: Setup DTC Overlay
         run: |
@@ -32,16 +28,22 @@ jobs:
 
       - name: Build Kernel
         run: |
-          make O=out ARCH=$ARCH CC=$CC CROSS_COMPILE=$CROSS_COMPILE rosemary_defconfig
+          export PATH=$(pwd)/bin/clang/bin:$PATH
+          make O=out ARCH=arm64 rosemary_defconfig
           make -j$(nproc --all) O=out \
-            ARCH=$ARCH \
-            CC=$CC \
-            CROSS_COMPILE=$CROSS_COMPILE \
-            CROSS_COMPILE_ARM32=$CROSS_COMPILE_ARM32 \
+            ARCH=arm64 \
+            CC=clang \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            AR=llvm-ar \
             NM=llvm-nm \
             OBJCOPY=llvm-objcopy \
             OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip
+            STRIP=llvm-strip \
+            OBJSIZE=llvm-size \
+            LD=ld.lld \
+            KBUILD_BUILD_USER="@Java_nih_deks" \
+            KBUILD_BUILD_HOST="XianTian-CI"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
