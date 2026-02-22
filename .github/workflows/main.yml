@@ -22,22 +22,18 @@ jobs:
 
       - name: Fix 4.19 Common Bug
         run: |
-          # Memperbaiki error yylloc yang sering muncul di kernel lama
           sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/g' scripts/dtc/dtc-lexer.l || true
 
       - name: Build Kernel
         run: |
           export PATH=$(pwd)/bin/clang/bin:$PATH
           
-          # Setup DTC Overlay (Trik temanmu)
           mkdir -p scripts/dtc
           cp $(which dtc) scripts/dtc/dtc_overlay
           chmod +x scripts/dtc/dtc_overlay
 
-          # Konfigurasi
           make O=out ARCH=arm64 rosemary_defconfig
 
-          # Kompilasi
           make -j$(nproc --all) O=out \
             ARCH=arm64 \
             CC=clang \
